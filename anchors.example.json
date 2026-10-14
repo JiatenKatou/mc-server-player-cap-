@@ -1,0 +1,6 @@
+﻿{"anchors":[
+ {"cpu":"i9-14900K","ram":"32G","mods":0,"view":"10","players":24,"tps":18.5,"bottleneck":"cpu","source":"示例A"},
+ {"cpu":"i5-12400","ram":"16G","mods":0,"view":"10","players":10,"tps":17.2,"bottleneck":"cpu","source":"示例B"},
+ {"cpu":"Ryzen 7 5800X3D","ram":"16G","mods":30,"view":"10","players":12,"tps":19.1,"bottleneck":"cpu","source":"示例C"},
+ {"cpu":"Ryzen 5 5600","ram":"8G","mods":0,"view":"10","players":20,"tps":20,"bottleneck":"ram","source":"示例D（内存瓶颈，应被跳过）"}
+]}
