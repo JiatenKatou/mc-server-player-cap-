@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minecraft 服务器人数上限计算器</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Minecraft 服务器人数上限计算器</h1>
+  <p class="dim">木桶效应：CPU 算力 / 内存 / 网络 / 模组负载 各自算出可承载人数，取最小值作为上限<span id="version"></span></p>
+</header>
+
+<main>
+  <!-- ================= 输入 ================= -->
+  <section class="panel form">
+    <h2><span class="badge">输入参数</span></h2>
+
+    <label>① 模组数量 <span class="dim">服务端模组数</span>
+      <input id="mod_count" type="text" value="0" inputmode="numeric">
+    </label>
+
+    <label>② CPU 型号 <span class="dim">可输入可下拉；库里没有就自己录一个</span>
+      <input id="cpu" type="text" list="cpu_list" value="Ryzen 5 5600" autocomplete="off">
+      <datalist id="cpu_list"></datalist>
+    </label>
+
+    <details id="cpu-adder" class="adder">
+      <summary>➕ 录入自定义 CPU 型号（填 CPU-Z 单核跑分）</summary>
+      <p class="dim">在 CPU-Z 里跑一下「Bench → CPU Single Thread」，把那个分数填进来即可。</p>
+      <div class="grid2">
+        <label>型号名称 <input id="cc-name" type="text" placeholder="如 AMD Ryzen 7 5800X3D 开PBO"></label>
+        <label>CPU-Z 单核分 <input id="cc-cpuz" type="text" placeholder="如 690"></label>
+      </div>
+      <div class="grid3">
+        <label>物理核心 <input id="cc-cores" type="text" placeholder="8"></label>
+        <label>平台
+          <select id="cc-platform">
+            <option value="">自动识别</option>
+            <option value="desktop">桌面端</option>
+            <option value="mobile">移动端（笔记本）</option>
+          </select>
+        </label>
+        <label>备注 <input id="cc-note" type="text" placeholder="可留空"></label>
+      </div>
+      <div class="actions tight">
+        <button id="cc-save" type="button" class="primary">保存并选用</button>
+        <button id="cc-clear" type="button">清空</button>
+      </div>
+      <p id="cc-hint" class="note"></p>
+      <div id="cc-list-wrap">
+        <p class="dim">已录入的自定义型号：</p>
+        <ul id="cc-list" class="cc-list"></ul>
+      </div>
+    </details>
+
+    <label>③ 内存大小 <span class="dim">16G / 16384MB</span>
+      <input id="ram" type="text" value="8G">
+    </label>
+
+    <label>④ 网络状况 <span class="dim">档位决定默认上行，可被下面的测速结果覆盖</span>
+      <select id="network"></select>
+    </label>
+
+    <div class="grid3">
+      <label>上行 Mbps <span class="dim">填了就用实测值</span>
+        <input id="bandwidth" type="text" placeholder="档位默认"></label>
+      <label>下行 Mbps <span class="dim">仅记录不参与计算</span>
+        <input id="download" type="text" placeholder="可留空"></label>
+      <label>延迟 ms <input id="latency" type="text" placeholder="档位默认"></label>
+    </div>
+
+    <div class="grid2">
+      <label>丢包率 % <input id="loss" type="text" placeholder="档位默认"></label>
+      <div class="speedtest">
+        <span class="dim">不知道上行多少？先测一下：</span>
+        <button id="speedtest" type="button" class="link-btn">测速（中国科技大学测速网）</button>
+        <span id="speedtest-hint" class="dim"></span>
+      </div>
+    </div>
+
+    <hr>
+
+    <h2 class="accent">散热系数 <span class="dim">CPU 单核得分乘数</span></h2>
+
+    <div class="cooling-box">
+      <label>平台识别 <span class="dim">留空按型号自动</span>
+        <select id="platform">
+          <option value="">自动识别</option>
+          <option value="桌面端（台式机 / 服务器）">强制桌面端</option>
+          <option value="移动端（笔记本）">强制移动端</option>
+        </select>
+      </label>
+
+      <label id="row-radiator">桌面散热器 <span class="dim">仅桌面端生效</span>
+        <select id="radiator"></select>
+      </label>
+
+      <label id="row-chassis" class="mobile-only">笔记本模具 <span class="dim">仅移动端生效</span>
+        <select id="chassis"></select>
+      </label>
+
+      <label id="row-material" class="mobile-only">导热耗材 <span class="dim">仅移动端生效</span>
+        <select id="material"></select>
+      </label>
+
+      <label>自定义总系数 <span class="dim">填写后覆盖上面</span>
+        <input id="cooling_override" type="text" placeholder="如 0.85">
+      </label>
+
+      <p id="cooling-note" class="note">桌面 CPU：散热系数默认 1.000</p>
+    </div>
+
+    <hr>
+
+    <div class="grid3">
+      <label>玩法类型 <select id="behavior"></select></label>
+      <label>每玩家负载 <select id="player_sim"></select></label>
+      <label>视距（区块） <select id="view_distance"></select></label>
+    </div>
+
+    <div id="pack-box" class="pack-box hidden">
+      <label>整合包名称 <span class="dim">手动输入，决定用哪个包的专属系数</span>
+        <input id="modpack" type="text" list="pack_hints" autocomplete="off"
+               placeholder="如 GTNH 2.7 / ATM10 / Create: Above and Beyond">
+        <datalist id="pack_hints"></datalist>
+      </label>
+      <p id="pack-note" class="note"></p>
+    </div>
+
+    <div class="actions">
+      <button id="calc" class="primary">计算（Enter）</button>
+      <button id="reset">重置</button>
+      <button id="copy">复制结果</button>
+    </div>
+  </section>
+
+  <!-- ================= 服主信息反馈 ================= -->
+  <section class="panel feedback" id="feedback-panel">
+    <h2><span class="badge">信息反馈收集</span>
+      <span class="dim">给服主填的真实承载数据，用来校准系数</span></h2>
+    <p id="fb-privacy" class="dim note"></p>
+
+    <details id="fb-form-wrap" class="adder" open>
+      <summary>📝 填写一条承载数据</summary>
+
+      <div class="grid2">
+        <label>CPU 型号 <span class="dim">越精确越好</span>
+          <input id="fb-cpu" type="text" list="cpu_list" placeholder="如 i9-14900K"></label>
+        <label>CPU-Z 单核跑分 <span class="dim">Bench → CPU Single Thread</span>
+          <input id="fb-cpuz" type="text" placeholder="如 950"></label>
+      </div>
+
+      <div class="grid3">
+        <label>活跃用户（同时在线） <input id="fb-players" type="text" placeholder="如 22"></label>
+        <label>区块视距 <select id="fb-view"></select></label>
+        <label>TPS <span class="dim">按跌破 19.5 时的口径</span>
+          <input id="fb-tps" type="text" placeholder="如 19.2"></label>
+      </div>
+
+      <div class="grid2">
+        <label>玩法 <select id="fb-playstyle"></select></label>
+        <label>瓶颈判断 <span class="dim">只有 CPU 才用于校准</span>
+          <select id="fb-bottleneck">
+            <option value="cpu">CPU</option>
+            <option value="ram">内存</option>
+            <option value="network">网络</option>
+            <option value="mods">模组 / 玩法</option>
+            <option value="unknown" selected>不确定</option>
+          </select>
+        </label>
+      </div>
+      <p id="fb-playstyle-desc" class="dim"></p>
+
+      <!-- 整合包专属字段 -->
+      <div id="fb-modpack" class="modpack-box hidden">
+        <p class="modpack-title">整合包补充信息（选了「整合包」才需要填）</p>
+        <div class="grid2">
+          <label>整合包名称 <span class="dim">手动输入</span>
+            <input id="fb-modpack-name" type="text" list="modpack_hints" autocomplete="off"
+                   placeholder="如 GTNH 2.7 / ATM10 / Create: Above and Beyond">
+            <datalist id="modpack_hints"></datalist></label>
+          <label>MC 版本 <select id="fb-mc-version"></select></label>
+        </div>
+        <div class="grid2">
+          <label>模组数量 <input id="fb-mods" type="text" placeholder="如 400"></label>
+          <label>玩法类型 <select id="fb-modpack-kind"></select></label>
+        </div>
+      </div>
+
+      <div class="grid3">
+        <label>内存 <input id="fb-ram" type="text" placeholder="如 32G"></label>
+        <label>服务端 <select id="fb-software"></select></label>
+        <label>进度阶段 <select id="fb-progress"></select></label>
+      </div>
+
+      <div class="grid2">
+        <label>作者优化状况 <span class="dim">不同整合包差别很大</span>
+          <select id="fb-optimization"></select>
+        </label>
+      </div>
+
+      <label>备注 / 来源 <span class="dim">选填，便于回溯</span>
+        <input id="fb-note" type="text" placeholder="如 Paper 1.21、开了预防性区块加载、周中晚高峰"></label>
+
+      <div class="actions tight">
+        <button id="fb-submit" type="button" class="primary">提交这条数据</button>
+        <button id="fb-clear" type="button">清空</button>
+      </div>
+      <p id="fb-hint" class="note"></p>
+    </details>
+
+    <div class="fb-stats">
+      <div id="fb-count" class="dim">已收集 0 条</div>
+      <div class="actions tight">
+        <button id="fb-summary" type="button">查看汇总</button>
+        <button id="fb-export-json" type="button">导出 JSON</button>
+        <button id="fb-export-csv" type="button">导出 CSV</button>
+        <button id="fb-export-anchors" type="button">导出校准锚点</button>
+        <button id="fb-export-agent" type="button">导出给 Agent 的文件</button>
+        <button id="fb-apply" type="button">应用汇总到玩法系数</button>
+      </div>
+    </div>
+
+    <div id="fb-list-wrap">
+      <p class="dim">已收集的数据（最新的在最后）：</p>
+      <ul id="fb-list" class="cc-list"></ul>
+    </div>
+
+    <pre id="fb-summary-text" class="detail hidden"></pre>
+  </section>
+
+  <!-- ================= 本地状态 / 恢复默认 ================= -->
+  <section class="card" id="state-card">
+    <h2>本地状态 / 恢复默认</h2>
+    <p class="note">所有数据都在你自己机器上。<b>恢复默认会先把文件改名成
+      <code>&lt;原名&gt;.&lt;时间戳&gt;.bak</code>，可以整组撤销</b>，不会直接销毁。</p>
+    <ul id="state-list" class="cc-list"></ul>
+
+    <div class="actions">
+      <button id="st-preview" type="button">预演一下</button>
+      <button id="st-reset-user" type="button">清除用户数据</button>
+      <button id="st-reset-derived" type="button">恢复校准产物</button>
+      <button id="st-reset-all" type="button" class="danger">全部恢复默认</button>
+    </div>
+    <div id="st-backups-wrap" class="hidden">
+      <p class="dim">可撤销的备份（点一下就整组还原）：</p>
+      <ul id="st-backups" class="cc-list"></ul>
+    </div>
+    <pre id="st-report" class="detail hidden"></pre>
+  </section>
+
+  <!-- ================= 结果 ================= -->
+  <section class="panel output">
+    <div class="verdict">
+      <div id="final" class="score">— 人</div>
+      <div class="verdict-note">
+        <div id="binding" class="dim">等待计算…</div>
+        <div id="tps" class="dim"></div>
+        <div id="top-warning" class="warn"></div>
+      </div>
+    </div>
+
+    <h2>各维度可承载人数 <span class="dim">最小值即上限</span></h2>
+    <table id="factor-table">
+      <thead>
+        <tr><th>维度</th><th>可承载</th><th>占用率</th><th>状态</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h2>推导过程与建议</h2>
+    <pre id="detail" class="detail">正在计算…</pre>
+  </section>
+</main>
+
+<footer class="dim">
+  纯本地运行 · 数据不出本机 · <span id="foot-note">系数均为框架默认值，可用真实压测数据校准</span>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
